@@ -111,11 +111,12 @@ def save_snapshot(season: int, games: pd.DataFrame, pg: pd.DataFrame, ps: pd.Dat
     if played.empty:
         return
     _w(games, path("snap_tv_games", season))
-    k = pg.copy()
-    for c in ("muid", "team", "player", "cls", "opponent", "loc"):
-        if c in k:
-            k[c] = k[c].astype("string")
-    _w(k, path("snap_pg", season))
+    if pg is not None:
+        k = pg.copy()
+        for c in ("muid", "team", "player", "cls", "opponent", "loc"):
+            if c in k:
+                k[c] = k[c].astype("string")
+        _w(k, path("snap_pg", season))
     ps2 = ps.copy()
     for c in ps2.columns:
         if ps2[c].dtype == object:

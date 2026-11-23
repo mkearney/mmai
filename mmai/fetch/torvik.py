@@ -130,7 +130,7 @@ def probe(season: int) -> bytes | None:
     try:
         if os.environ.get("MMAI_FORCE_ESPN"):
             raise RuntimeError("MMAI_FORCE_ESPN set")
-        raw = get(f"{BASE}/{season}_super_sked.csv", retries=2).content
+        raw = get(f"{BASE}/{season}_super_sked.csv", retries=1).content
     except Exception as e:
         print(f"  Torvik unavailable ({e}); switching current season to ESPN")
         return None

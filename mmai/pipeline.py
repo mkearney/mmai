@@ -63,16 +63,19 @@ def stage_data(refresh=True):
     seasons = list(range(FIRST_SEASON, current_season() + 1))
     log("fetching games (Torvik + ESPN)")
     games, meta = D.build(seasons, refresh_current=refresh)
-    log("fetching player data")
+    from . import espn_season, history
+    cur = current_season()
+    log("player data (history + Torvik snapshot + ESPN box scores)")
+    cw = pd.read_csv(ARTIFACTS / "crosswalk.csv", dtype={"espn_id": str})
+    espn_season.current_player_games(cur, games, cw)
     pg = PL.load_player_games(seasons, refresh_current=refresh)
     ps = PL.load_player_seasons(seasons, refresh_current=refresh)
     conf = F.conferences(seasons)
-    from . import espn_season, history
-    cur = current_season()
     if not espn_season.active(cur) and (PROC / f"tv_games_{cur}.parquet").exists():
-        history.save_snapshot(cur, pd.read_parquet(PROC / f"tv_games_{cur}.parquet"),
-                              pg[pg["season"] == cur], ps[ps["season"] == cur])
-        log("saved Torvik snapshot of the current season to history/")
+        # games + player-season table only; the player-game snapshot stays frozen (no json fetches)
+        history.save_snapshot(cur, pd.read_parquet(PROC / f"tv_games_{cur}.parquet"), None,
+                              ps[ps["season"] == cur])
+        log("updated Torvik snapshot (games, player seasons) in history/")
     return games, meta, pg, ps, conf
 
 

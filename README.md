@@ -34,6 +34,8 @@ python -m mmai publish   # re-export the site from cached features (fast)
 python -m mmai history   # after a season ends: refresh the committed history/ bundle
 ```
 
+**Being a polite client.** Requests identify themselves honestly (`mmai-research/0.2`). Calls to barttorvik.com are spaced at least 10 seconds apart, as its robots.txt asks. A daily run makes 3 small CSV requests there and never downloads the player-game json. This season's player-game logs come from a frozen Torvik snapshot plus ESPN box scores, converted with the calibrated box-score formula. A refusal (403) is never retried.
+
 Any run that can reach barttorvik.com saves a snapshot of the current season to `history/snap_*`. If Torvik refuses a request (it has blocked GitHub's runners), the snapshot is used and only games after it are filled in from ESPN. Run `python -m mmai daily` from your own machine and push now and then to refresh the snapshot. With no snapshot at all, the whole current season is rebuilt from ESPN: games and box scores from the game-summary endpoint, player values from a box-score formula calibrated on Torvik's game values, and conferences from ESPN standings. This path agrees with the Torvik path at about r = 0.99 on efficiency and 0.97 on power ratings. The site header notes when it was used.
 
 Completed seasons ship in `history/` (about 23 MB of compact parquet), so a run only downloads the current season. After a season ends, run `python -m mmai history` and commit `history/`. To preview locally: `cd docs && python -m http.server`.

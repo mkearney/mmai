@@ -21,8 +21,10 @@ FIRST_SEASON = 2008  # earliest season Torvik publishes game + player data for
 
 USER_AGENT = os.environ.get(
     "MMAI_UA",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+    "mmai-research/0.2 (non-commercial academic research)",
 )
+# minimum seconds between requests to a host (barttorvik.com asks for a 10s crawl delay)
+HOST_MIN_INTERVAL = {"barttorvik.com": 10.0}
 
 
 def today() -> dt.date:

@@ -24,6 +24,7 @@ from .injuries import norm_name
 
 OUT = RAW / "espn" / "summary"
 MARKER = PROC / "current_source.txt"
+SYNTH = 90_000_000  # ids for ESPN athletes not matched to a Torvik player
 
 # per-40-minute box rates -> game plus/minus (fit on Torvik 2023-26 player-game logs)
 _FEATS = ["twopm", "twopa", "tpm", "tpa", "ftm", "fta", "orb", "drb", "ast", "tov", "stl", "blk", "pf"]
@@ -153,7 +154,7 @@ def box_pm(df: pd.DataFrame, opp_em: dict | None = None) -> pd.DataFrame:
 
 
 def build_current(season: int, eg: pd.DataFrame, cw: pd.DataFrame, workers: int = 6):
-    """Write Torvik-format current-season tables built from ESPN; returns the games frame."""
+    """Current-season games in Torvik format from ESPN (used only when Torvik is unreachable)."""
     id2team = dict(zip(cw["espn_id"].astype(str), cw["team"]))
     e = eg[(eg["season"] == season)].copy()
     e = e[e["home_id"].astype(str).isin(id2team) & e["away_id"].astype(str).isin(id2team)]
@@ -161,11 +162,10 @@ def build_current(season: int, eg: pd.DataFrame, cw: pd.DataFrame, workers: int 
     with ThreadPoolExecutor(workers) as ex:
         sums = dict(zip(done["event_id"], ex.map(lambda i: summary(season, i), done["event_id"])))
     print(f"  ESPN fallback: {len(e)} D-I games, {sum(v is not None for v in sums.values())} box scores")
-    by_team, by_name, cls_map = _pid_index(season)
     conf = conferences(season, cw)
     d1 = set(conf["team"])
 
-    g_rows, p_rows = [], []
+    g_rows = []
     for r in e.itertuples():
         a_id, b_id = str(r.away_id), str(r.home_id)
         ta, tb = id2team[a_id], id2team[b_id]
@@ -189,47 +189,22 @@ def build_current(season: int, eg: pd.DataFrame, cw: pd.DataFrame, workers: int 
             if team_min > 0:
                 row["minutes"] = max(200.0, round(team_min / 25.0) * 25.0)
                 row["ot"] = int(max(0, (row["minutes"] - 200) / 25))
-            for p in s["players"]:
-                if np.isnan(p["min"]) or p["min"] <= 0:
-                    continue
-                team = id2team.get(p["team_id"])
-                nk = norm_name(p["name"])
-                pid = by_team.get((team, nk)) or by_name.get(nk) or 90_000_000 + int(p["athlete_id"] or 0)
-                p_rows.append({**p, "season": season, "date": row["date"], "muid": gid, "team": team,
-                               "opponent": tb if team == ta else ta,
-                               "loc": "N" if neutral else ("A" if team == ta else "H"),
-                               "player": p["name"], "pid": float(pid), "cls": cls_map.get(int(pid)),
-                               "inches": np.nan, "ortg": np.nan, "usage": np.nan, "poss": row["poss"]})
         row["a_won"] = bool(row["pts_a"] > row["pts_b"]) if row["played"] else False
         g_rows.append(row)
     games = pd.DataFrame(g_rows)
     snap = history.load_snapshot(season)
-    snap_pg = snap_ps = None
+    snap_ps = None
     if snap is not None:
-        sg, snap_pg, snap_ps = snap
+        sg, _, snap_ps = snap
         cutoff = sg.loc[sg["played"], "date"].max()
         games = pd.concat([sg[sg["played"] & (sg["date"] <= cutoff)], games[games["date"] > cutoff]],
                           ignore_index=True)
-        p_rows = [r for r in p_rows if r["date"] > cutoff]
-        print(f"  using Torvik snapshot through {cutoff:%Y-%m-%d}; ESPN for later games")
+        print(f"  using Torvik game snapshot through {cutoff:%Y-%m-%d}; ESPN for later games")
     for side in ("a", "b"):
         for k in ("fgm", "fga", "tpm", "tpa", "ftm", "fta", "orb", "drb", "trb", "ast", "stl", "blk", "tov", "pf", "pts"):
             if f"{side}_{k}" not in games:
                 games[f"{side}_{k}"] = np.nan
-    pg = box_pm(pd.DataFrame(p_rows), _current_em(games)) if p_rows else pd.DataFrame(columns=["season"])
-    if len(pg):
-        prev = history.load_pg(season - 1) if history.path("pg", season - 1).exists() else None
-        if prev is not None:  # carry heights over from last season
-            h = prev.dropna(subset=["inches"]).drop_duplicates("pid", keep="last").set_index("pid")["inches"]
-            pg["inches"] = pg["pid"].map(h)
-        keep = ["season", "date", "muid", "team", "opponent", "loc", "player", "pid", "cls", "inches", "min",
-                "ortg", "usage", "bpm", "obpm", "dbpm", "pts", "poss"]
-        pg = pg[keep].astype({"cls": "string", "loc": "string"})
-    if snap_pg is not None:
-        pg = pd.concat([snap_pg, pg], ignore_index=True) if len(pg) else snap_pg
-        pg = pg.astype({"cls": "string", "loc": "string"})
     games.to_parquet(PROC / f"tv_games_{season}.parquet")
-    pg.to_parquet(PROC / f"pg_{season}.parquet")
     (snap_ps if snap_ps is not None and len(snap_ps) else pd.DataFrame(columns=history.PS_COLS)).to_parquet(
         PROC / f"ps_{season}.parquet")
     conf.to_parquet(PROC / f"conf_{season}.parquet")
@@ -238,6 +213,66 @@ def build_current(season: int, eg: pd.DataFrame, cw: pd.DataFrame, workers: int 
         cut = f" {sg.loc[sg['played'], 'date'].max():%Y-%m-%d}"
     MARKER.write_text(f"espn {season}{cut}")
     return games
+
+
+PG_KEEP = ["season", "date", "muid", "team", "opponent", "loc", "player", "pid", "cls", "inches", "min",
+           "ortg", "usage", "bpm", "obpm", "dbpm", "pts", "poss"]
+
+
+def current_player_games(season: int, games: pd.DataFrame, cw: pd.DataFrame, workers: int = 6) -> pd.DataFrame:
+    """This season's player-game rows: the frozen Torvik snapshot, plus ESPN box scores after it.
+
+    The daily job never downloads Torvik's player-game json (its robots.txt disallows *.json);
+    ESPN box scores are converted with the calibrated box-score formula. Rows are keyed to the
+    games table's ids (Torvik or ESPN) through the matched ESPN event id. Writes the PROC file.
+    """
+    id2team = dict(zip(cw["espn_id"].astype(str), cw["team"]))
+    g = games[(games["season"] == season) & games["played"]].copy()
+    snap = history.load_snapshot(season)
+    snap_pg = snap[1] if snap is not None and len(snap[1]) else None
+    cutoff = pd.Timestamp(snap_pg["date"].max()) if snap_pg is not None else pd.Timestamp("1900-01-01")
+    todo = g[(g["date"] > cutoff) & g["event_id"].notna()]
+    with ThreadPoolExecutor(workers) as ex:
+        sums = dict(zip(todo["event_id"], ex.map(lambda i: summary(season, i), todo["event_id"])))
+    by_team, by_name, cls_map = _pid_index(season)
+    rows = []
+    for r in todo.itertuples():
+        sm = sums.get(r.event_id)
+        if not sm:
+            continue
+        for p in sm["players"]:
+            if np.isnan(p["min"]) or p["min"] <= 0:
+                continue
+            team = id2team.get(p["team_id"])
+            if team not in (r.team_a, r.team_b):
+                continue
+            nk = norm_name(p["name"])
+            pid = by_team.get((team, nk)) or by_name.get(nk) or SYNTH + int(p["athlete_id"] or 0)
+            is_a = team == r.team_a
+            rows.append({**p, "season": season, "date": r.date, "muid": r.gid, "team": team,
+                         "opponent": r.team_b if is_a else r.team_a,
+                         "loc": "N" if r.loc == 0 else ("H" if (r.loc == 1) == is_a else "A"),
+                         "player": p["name"], "pid": float(pid), "cls": cls_map.get(int(pid)),
+                         "inches": np.nan, "ortg": np.nan, "usage": np.nan, "poss": r.poss})
+    pg = box_pm(pd.DataFrame(rows), _current_em(games[games["season"] == season])) if rows else \
+        pd.DataFrame(columns=PG_KEEP)
+    if len(pg):
+        heights = []
+        if snap_pg is not None:
+            heights.append(snap_pg[["pid", "inches"]])
+        if history.path("pg", season - 1).exists():
+            heights.append(history.load_pg(season - 1)[["pid", "inches"]])
+        if heights:
+            h = pd.concat(heights).dropna().drop_duplicates("pid").set_index("pid")["inches"]
+            pg["inches"] = pg["pid"].map(h)
+        pg = pg[PG_KEEP]
+    if snap_pg is not None:
+        pg = pd.concat([snap_pg[snap_pg["date"] <= cutoff], pg], ignore_index=True) if len(pg) else snap_pg
+    pg = pg.astype({"cls": "string", "loc": "string"})
+    pg.to_parquet(PROC / f"pg_{season}.parquet")
+    print(f"  player-game rows {season}: {len(pg)} (snapshot through {cutoff:%Y-%m-%d}, "
+          f"{len(rows)} from ESPN box scores)")
+    return pg
 
 
 def _current_em(games: pd.DataFrame) -> dict:

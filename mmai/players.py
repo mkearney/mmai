@@ -26,7 +26,13 @@ def load_player_games(seasons, refresh_current=True) -> pd.DataFrame:
     frames = []
     for s in seasons:
         p = PROC / f"pg_{s}.parquet"
-        if p.exists() and (espn_season.active(s) or not (refresh_current and s >= current_season())):
+        if s >= current_season():
+            # current season comes from espn_season.current_player_games (Torvik snapshot + ESPN box
+            # scores); the daily job never downloads Torvik's player-game json
+            if p.exists():
+                frames.append(pd.read_parquet(p))
+            continue
+        if p.exists():
             frames.append(pd.read_parquet(p))
             continue
         if history.has("pg", s):

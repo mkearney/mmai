@@ -8,16 +8,35 @@ from pathlib import Path
 
 import requests
 
-from .config import USER_AGENT
+import threading
+from urllib.parse import urlparse
+
+from .config import HOST_MIN_INTERVAL, USER_AGENT
 
 _session = requests.Session()
 _session.headers.update({"User-Agent": USER_AGENT, "Accept": "*/*"})
+_last: dict[str, float] = {}
+_lock = threading.Lock()
+
+
+def _throttle(url: str):
+    """Honor per-host crawl delays (requests to such hosts are serialized)."""
+    host = urlparse(url).hostname or ""
+    gap = next((v for h, v in HOST_MIN_INTERVAL.items() if host == h or host.endswith("." + h)), 0.0)
+    if not gap:
+        return
+    with _lock:
+        wait = _last.get(host, 0.0) + gap - time.time()
+        if wait > 0:
+            time.sleep(wait)
+        _last[host] = time.time()
 
 
 def get(url: str, *, timeout: int = 60, retries: int = 4, backoff: float = 2.0) -> requests.Response:
     last = None
     for i in range(retries):
         try:
+            _throttle(url)
             r = _session.get(url, timeout=timeout)
             if r.status_code == 200:
                 return r
