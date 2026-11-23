@@ -98,8 +98,8 @@ def player_priors(ps: pd.DataFrame, pg: pd.DataFrame) -> pd.DataFrame:
     r["prior_o"] = np.where(o_share, r["prior_v"] - (shrink * r["p_dbpm"].fillna(0) + (1 - shrink) * -1.0),
                             0.6 * r["prior_v"])
     r["prior_d"] = r["prior_v"] - r["prior_o"]
-    r["returning"] = (r["prev_team"] == r["team"])
-    r["experience"] = r["cls"].map(CLS_NUM)
+    r["returning"] = (r["prev_team"] == r["team"]).fillna(False).astype(bool)
+    r["experience"] = pd.to_numeric(r["cls"].map(CLS_NUM), errors="coerce").astype("float64")
     return r[["season", "pid", "team", "prior_v", "prior_o", "prior_d", "returning", "experience",
               "inches", "p_mins", "rec_rank"]]
 
@@ -112,9 +112,13 @@ def team_player_features(games: pd.DataFrame, pg: pd.DataFrame, priors: pd.DataF
     ``availability``: {(team, pid): prob_available} used for the live (next game) state.
     """
     availability = availability or {}
+    def num(col, fill=np.nan):  # nullable/NA-safe -> plain float64
+        return pd.to_numeric(priors[col], errors="coerce").astype("float64").fillna(fill).to_numpy()
+
     pri = {(a, b): (c, d, e, f, g_, h) for a, b, c, d, e, f, g_, h in zip(
-        priors["season"], priors["pid"].astype(int), priors["prior_v"], priors["prior_o"], priors["prior_d"],
-        priors["inches"], priors["experience"], priors["returning"].astype(float))}
+        priors["season"].to_numpy(), pd.to_numeric(priors["pid"], errors="coerce").fillna(-1).astype(int).to_numpy(),
+        num("prior_v", -3.0), num("prior_o", -1.8), num("prior_d", -1.2), num("inches"), num("experience"),
+        priors["returning"].fillna(False).astype(float).to_numpy())}
     out_rows = []
     live = {}
     g = games[games["type"] != "nond1"]
