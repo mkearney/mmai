@@ -1,5 +1,5 @@
-numpy>=1.26
-pandas>=2.1
+numpy>=2.2
+pandas>=3.0
 pyarrow>=14
 requests>=2.31
 beautifulsoup4>=4.12
