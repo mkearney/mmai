@@ -9,6 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from . import history
 from .config import PROC, current_season
 from .fetch import torvik
 
@@ -24,6 +25,9 @@ def load_player_games(seasons, refresh_current=True) -> pd.DataFrame:
         p = PROC / f"pg_{s}.parquet"
         if p.exists() and not (refresh_current and s >= current_season()):
             frames.append(pd.read_parquet(p))
+            continue
+        if history.has("pg", s):
+            frames.append(history.load_pg(s))
             continue
         try:
             d = torvik.player_games(s)
@@ -42,6 +46,9 @@ def load_player_seasons(seasons, refresh_current=True) -> pd.DataFrame:
         p = PROC / f"ps_{s}.parquet"
         if p.exists() and not (refresh_current and s >= current_season()):
             frames.append(pd.read_parquet(p))
+            continue
+        if history.has("ps", s):
+            frames.append(history.load_ps(s))
             continue
         try:
             d = torvik.player_seasons(s)

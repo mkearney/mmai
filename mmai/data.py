@@ -9,7 +9,7 @@ from collections import Counter, defaultdict
 import numpy as np
 import pandas as pd
 
-from . import geo
+from . import geo, history
 from .config import ARTIFACTS, FIRST_SEASON, PROC, RAW, current_season
 from .fetch import espn, torvik
 
@@ -21,6 +21,9 @@ def torvik_games(seasons, refresh_current=True) -> pd.DataFrame:
         p = PROC / f"tv_games_{s}.parquet"
         if p.exists() and not (refresh_current and s >= current_season()):
             frames.append(pd.read_parquet(p))
+            continue
+        if history.has("tv_games", s):
+            frames.append(pd.read_parquet(history.path("tv_games", s)))
             continue
         g = torvik.super_sked(s)
         g.to_parquet(p)
@@ -35,6 +38,9 @@ def espn_games(seasons, refresh_current=True) -> pd.DataFrame:
         p = PROC / f"espn_games_{s}.parquet"
         if p.exists() and not (refresh_current and s >= current_season()):
             frames.append(pd.read_parquet(p))
+            continue
+        if history.has("espn_games", s):
+            frames.append(pd.read_parquet(history.path("espn_games", s)))
             continue
         a = espn.fetch_season(s, 50)
         b = espn.tournament_games(s)

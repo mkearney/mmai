@@ -31,9 +31,10 @@ python -m mmai daily     # refresh current season -> ratings, predictions, brack
 python -m mmai train     # same + retrain the network ensemble
 python -m mmai all       # same + rerun the rolling NCAA backtest
 python -m mmai publish   # re-export the site from cached features (fast)
+python -m mmai history   # after a season ends: refresh the committed history/ bundle
 ```
 
-The first run downloads about 20 seasons of data, roughly 400 MB, cached in `data/` (gitignored). Later runs only refresh the current season. To preview locally: `cd docs && python -m http.server`.
+Completed seasons ship in `history/` (about 23 MB of compact parquet), so a run only downloads the current season. After a season ends, run `python -m mmai history` and commit `history/`. To preview locally: `cd docs && python -m http.server`.
 
 ### Manual controls
 
@@ -61,6 +62,7 @@ mmai/            python package
   predict.py     live team state, power ratings, upcoming games
   bracket.py     projected/actual bracket, exact probabilities, picks
   pipeline.py    end-to-end + JSON export
+history/         compact committed copy of completed seasons (games, players, venues)
 docs/            static site (index.html, assets/, data/)
 artifacts/       trained model, crosswalk, team metadata, backtest results
 ```
