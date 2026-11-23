@@ -36,7 +36,13 @@ def cached_bytes(url: str, path: Path, *, refresh: bool = False) -> bytes:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and not refresh:
         return path.read_bytes()
-    content = get(url).content
+    try:
+        content = get(url).content
+    except Exception as e:
+        if path.exists():  # source unavailable: fall back to the last good copy
+            print(f"  WARNING: refresh failed for {url} ({e}); using cached copy")
+            return path.read_bytes()
+        raise
     path.write_bytes(content)
     return content
 

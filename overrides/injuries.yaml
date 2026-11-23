@@ -1,0 +1,12 @@
+# Manual injury / availability overrides. These win over the Rotowire feed.
+# availability: probability the player plays (0 = out, 0.5 = questionable, 1 = healthy)
+# until: optional date after which the entry is ignored.
+#
+# injuries:
+#   - team: Duke            # Torvik/ESPN team name
+#     player: Jane Doe
+#     status: out
+#     availability: 0.0
+#     until: 2027-03-01
+#     note: knee
+injuries: []

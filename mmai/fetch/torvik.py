@@ -64,8 +64,7 @@ def super_sked(season: int) -> pd.DataFrame:
         "neutral": s[7].astype(int) == 1,
         "team_a": s[8],
         "team_b": s[14],
-        "a_home": s[12].astype(int) == 1,
-        "b_home": s[18].astype(int) == 1,
+        "a_won": s[12].astype(int) == 1,
         "played": s[23].fillna(0).astype(int) == 1,
         "pts_a": pd.to_numeric(s[27], errors="coerce"),
         "pts_b": pd.to_numeric(s[28], errors="coerce"),
@@ -73,8 +72,10 @@ def super_sked(season: int) -> pd.DataFrame:
         "ot": pd.to_numeric(s[51], errors="coerce").fillna(0).astype(int),
     })
     out["season"] = season
-    # location from team_a perspective: +1 home, 0 neutral, -1 away
-    out["loc"] = np.where(out["neutral"], 0, np.where(out["a_home"], 1, np.where(out["b_home"], -1, 0)))
+    # location from team_a perspective: +1 home, 0 neutral, -1 away.
+    # Torvik writes "away at home" / "x vs. y" (neutral), team_a listed first.
+    at_game = s[3].astype(str).str.contains(" at ", regex=False)
+    out["loc"] = np.where(out["neutral"] | ~at_game, 0, -1)
 
     # full box score (list literal)
     boxes = []
@@ -150,7 +151,11 @@ def player_seasons(season: int) -> pd.DataFrame:
 def team_results(season: int) -> pd.DataFrame:
     raw = cached_bytes(f"{BASE}/{season}_team_results.csv", OUT / f"{season}_team_results.csv",
                        refresh=_refresh(season))
-    t = pd.read_csv(io.BytesIO(raw), index_col=False)
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        t = pd.read_csv(io.BytesIO(raw), index_col=False)
     t = t.rename(columns={"team": "team", "adjoe": "t_adjoe", "adjde": "t_adjde", "barthag": "t_barthag"})
     t["season"] = season
     return t[["season", "team", "conf", "t_adjoe", "t_adjde", "t_barthag"]]

@@ -1,0 +1,25 @@
+# 2027 NCAA tournament configuration (76-team field, 12-game Opening Round).
+# Sites per Wikipedia (Oct 2026). Edit if anything changes.
+field_size: 76
+opening_auto: 12        # lowest-seeded automatic qualifiers in the Opening Round
+opening_at_large: 12    # lowest-seeded at-large teams in the Opening Round
+regions:
+  - {name: South, site: "San Antonio, TX"}
+  - {name: West, site: "Los Angeles, CA"}
+  - {name: Midwest, site: "Kansas City, MO"}
+  - {name: East, site: "New York, NY"}
+# Which regional champions meet in the national semifinals (set from the official bracket).
+final_four_pairs: [[South, West], [Midwest, East]]
+first_round_sites: ["Pittsburgh, PA", "Omaha, NE", "Fort Worth, TX", "Spokane, WA",
+                    "Charlotte, NC", "Minneapolis, MN", "Louisville, KY", "Sacramento, CA"]
+opening_sites: ["Dayton, OH", "Wichita, KS"]
+final_four_site: "Detroit, MI"
+
+# Once the bracket is announced it is read automatically from ESPN. To enter it by hand
+# instead (or to fix something), uncomment and fill in. A slot with two teams is an
+# Opening Round game feeding that seed line.
+# bracket:
+#   regions:
+#     - name: South
+#       site: "San Antonio, TX"
+#       slots: {1: [Duke], 16: [Team A, Team B], 8: [...], ...}

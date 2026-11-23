@@ -169,7 +169,7 @@ def attach_espn(tg: pd.DataFrame, eg: pd.DataFrame, cw: pd.DataFrame, meta: pd.D
     e["region"] = e["notes"].fillna("").astype(str).map(ncaa_region)
     look = {}
     for r in e.itertuples():
-        info = (r.event_id, r.neutral == "True" or r.neutral is True, r.city, r.state, r.ncaa_round, r.region,
+        info = (r.event_id, str(r.neutral) == "True", r.city, r.state, r.ncaa_round, r.region,
                 r.home_rank, r.away_rank, r.notes)
         for off in (0, -1, 1):
             d = r.date + pd.Timedelta(days=off)
@@ -194,6 +194,12 @@ def attach_espn(tg: pd.DataFrame, eg: pd.DataFrame, cw: pd.DataFrame, meta: pd.D
         cols["notes"].append(notes)
     for k, v in cols.items():
         g[k] = v
+    # ESPN knows home/neutral reliably; prefer it where the game was matched
+    a_away = pd.Series([h[1] if (h := look.get((d, a, b))) else None
+                        for d, a, b in zip(g["date"], g["a_id"], g["b_id"])], index=g.index)
+    matched = g["event_id"].notna()
+    espn_loc = np.where(g["e_neutral"] == True, 0, np.where(a_away == True, -1, 1))  # noqa: E712
+    g["loc"] = np.where(matched, espn_loc, g["loc"]).astype(int)
     g["ncaa_round"] = pd.to_numeric(g["ncaa_round"], errors="coerce")
     g["is_ncaa"] = g["ncaa_round"].notna()
     for c in ("seed_a", "seed_b"):
