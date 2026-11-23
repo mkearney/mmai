@@ -67,6 +67,12 @@ def stage_data(refresh=True):
     pg = PL.load_player_games(seasons, refresh_current=refresh)
     ps = PL.load_player_seasons(seasons, refresh_current=refresh)
     conf = F.conferences(seasons)
+    from . import espn_season, history
+    cur = current_season()
+    if not espn_season.active(cur) and (PROC / f"tv_games_{cur}.parquet").exists():
+        history.save_snapshot(cur, pd.read_parquet(PROC / f"tv_games_{cur}.parquet"),
+                              pg[pg["season"] == cur], ps[ps["season"] == cur])
+        log("saved Torvik snapshot of the current season to history/")
     return games, meta, pg, ps, conf
 
 
@@ -146,7 +152,7 @@ def stage_publish(games, meta, pg, conf, feat, snaps, live, extras, inj_report):
     # live injury impact in points (per game at team tempo)
     st["injury_pts"] = st["avail_delta"].fillna(0) * st["adjt"] / 100
 
-    cols = ["slug", "rank", "power", "win_vs_avg", "win_vs_top25", "conf", "wins", "losses", "eff_o", "eff_d",
+    cols = ["slug", "rank", "power", "power_net", "win_vs_avg", "win_vs_top25", "conf", "wins", "losses", "eff_o", "eff_d",
             "adjem", "adjt", "elo", "roster", "avail_delta", "injury_pts", "sos", "games", "form",
             "eff_o_rank", "eff_d_rank", "adjem_rank", "adjt_rank", "elo_rank", "roster_rank", "sos_rank",
             "adjem_rank_week_ago", "espn_id", "location", "abbr", "color", "alt_color", "logo", "height", "experience",
@@ -211,6 +217,7 @@ def stage_publish(games, meta, pg, conf, feat, snaps, live, extras, inj_report):
     source = "espn" if espn_season.active(season) else "torvik"
     write_json("meta.json", {
         "updated": dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"), "season": season, "source": source,
+        "torvik_through": espn_season.snapshot_date(season),
         "n_teams": int(len(st)), "n_games_train": int(feat["played"].sum()),
         "seasons": [int(feat["season"].min()), int(feat["season"].max())],
         "injuries": records(inj_report.drop(columns=["pid"], errors="ignore")) if len(inj_report) else [],

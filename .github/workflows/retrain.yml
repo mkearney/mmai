@@ -44,7 +44,7 @@ jobs:
         run: |
           git config user.name "Michael W. Kearney"
           git config user.email "13401460+mkearney@users.noreply.github.com"
-          git add docs/data artifacts
+          git add docs/data artifacts history
           git diff --cached --quiet || git commit -m "Retrain + backtest $(date -u +%F)"
           git pull --rebase --autostash
           git push

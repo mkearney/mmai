@@ -101,3 +101,32 @@ def export(seasons=None):
         save_ps(PL.load_player_seasons([s], refresh_current=False), s)
         print("history", s, flush=True)
     save_conf(conferences(seasons))
+
+
+# ---------------------------------------------------------------- current-season snapshot
+# Whenever a run *can* reach Torvik, it saves the current season here so that runs which
+# cannot (GitHub's runners are blocked) only fill in newer games from ESPN.
+def save_snapshot(season: int, games: pd.DataFrame, pg: pd.DataFrame, ps: pd.DataFrame):
+    played = games[games["played"]]
+    if played.empty:
+        return
+    _w(games, path("snap_tv_games", season))
+    k = pg.copy()
+    for c in ("muid", "team", "player", "cls", "opponent", "loc"):
+        if c in k:
+            k[c] = k[c].astype("string")
+    _w(k, path("snap_pg", season))
+    ps2 = ps.copy()
+    for c in ps2.columns:
+        if ps2[c].dtype == object:
+            ps2[c] = ps2[c].astype("string")
+    _w(ps2, path("snap_ps", season))
+
+
+def load_snapshot(season: int):
+    if not path("snap_tv_games", season).exists():
+        return None
+    g = pd.read_parquet(path("snap_tv_games", season))
+    pg = pd.read_parquet(path("snap_pg", season))
+    ps = pd.read_parquet(path("snap_ps", season)) if path("snap_ps", season).exists() else pd.DataFrame()
+    return g, pg, ps

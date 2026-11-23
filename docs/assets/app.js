@@ -81,13 +81,14 @@
   window.addEventListener("hashchange", route);
 
   get("meta.json").then((m) => {
-    $("#updated").textContent = `Updated ${m.updated}` + (m.source === "espn" ? " · ESPN data (backup)" : "");
+    const src = m.source !== "espn" ? "" : m.torvik_through ? ` · Torvik data thru ${m.torvik_through.slice(5)}, ESPN after` : " · ESPN data (backup)";
+    $("#updated").textContent = `Updated ${m.updated}${src}`;
   }).catch(() => {});
 
   // ================================================================ RATINGS
   const VIEWS = {
     core: [
-      ["power", "Power", 1, false, "Average predicted margin vs every D-I team on a neutral floor (network round-robin)"],
+      ["power", "Power", 1, false, "Points per 100 possessions vs the top-100 teams: average of the matchup network's round-robin and AdjEM"],
       ["eff_o", "AdjO", 1, false, "Adjusted offensive efficiency (pts / 100 poss)"],
       ["eff_d", "AdjD", 1, true, "Adjusted defensive efficiency (lower is better)"],
       ["adjem", "AdjEM", 1, false, "AdjO − AdjD"],
@@ -205,7 +206,7 @@
       return `<div class="pct-track" title="${Math.round(shown * 100)}th percentile"><span style="width:${Math.max(3, shown * 100)}%;background:${col}"></span></div><div class="small muted" style="text-align:right">${fmt(t[key])}</div>`;
     };
     const statsHtml = [
-      ["Power rank", `#${t.rank}`, `${sgn(t.power)} vs avg`], ["Adj. offense", fmt(t.eff_o), `#${t.eff_o_rank}`],
+      ["Power rank", `#${t.rank}`, `${sgn(t.power)} per 100 vs top-100`], ["Adj. offense", fmt(t.eff_o), `#${t.eff_o_rank}`],
       ["Adj. defense", fmt(t.eff_d), `#${t.eff_d_rank}`], ["Tempo", fmt(t.adjt), `#${t.adjt_rank}`],
       ["Elo", fmt(t.elo, 0), `#${t.elo_rank}`], ["Roster strength", fmt(t.roster), `#${t.roster_rank}`],
       ["Win vs avg team", pct(t.win_vs_avg), "neutral floor"], ["Win vs top-25", pct(t.win_vs_top25), "neutral floor"],
@@ -468,7 +469,8 @@
     const tempo = (ta.adjt + tb.adjt) / 2;
     const total = ((ta.eff_o + tb.eff_d - lg) + (tb.eff_o + ta.eff_d - lg)) * tempo / 100;
     const pa = total / 2 + r.mu / 2, pb = total / 2 - r.mu / 2;
-    const edge = neutralReg.mu - (ta.power - tb.power);
+    const gapPts = ((ta.power_net ?? ta.power) - (tb.power_net ?? tb.power)) * tempo / 100; // network rating, per 100 poss
+    const edge = neutralReg.mu - gapPts;
     const rgb = (h) => h && /^[0-9a-f]{6}$/i.test(h) ? [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) : null;
     const close = (x, y) => !x || !y || Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]) < 110;
     const ca = ta.color ? `#${ta.color}` : "#f97316";
@@ -503,7 +505,7 @@
         <div class="stats" style="margin-top:16px">
           <div class="stat"><div class="k">Predicted margin</div><div class="v">${sgn(r.mu)}</div><div class="r">${esc(A)} perspective</div></div>
           <div class="stat"><div class="k">Uncertainty (σ)</div><div class="v">${fmt(r.sigma)}</div><div class="r">points</div></div>
-          <div class="stat"><div class="k">Power gap</div><div class="v">${sgn(ta.power - tb.power)}</div><div class="r">neutral, from ratings</div></div>
+          <div class="stat"><div class="k">Power gap</div><div class="v">${sgn(gapPts)}</div><div class="r">network ratings, at this tempo</div></div>
           <div class="stat"><div class="k">Matchup edge</div><div class="v">${sgn(edge)}</div><div class="r">${Math.abs(edge) < 0.3 ? "styles neutral" : `favors ${esc(edge > 0 ? A : B)}`}</div></div>
           <div class="stat"><div class="k">Site effect</div><div class="v">${sgn(r.mu - neutral.mu)}</div><div class="r">home court / travel / context</div></div>
         </div>
@@ -581,7 +583,7 @@
       <h2>4 · The matchup network</h2>
       <p>An encoder maps each team's ~45 features (efficiency, style O/D, roster, Elo, form, availability, rest, travel) to an embedding. A pair head scores <code>[A, B, A⊙B, context]</code>, so it can learn style interactions such as elite offensive rebounding against weak defensive rebounding. Margin = g(A,B) − g(B,A), which makes the model exactly antisymmetric. A second head predicts game-specific uncertainty σ, and P(win) = Φ(margin/σ). Context includes home/neutral/away, <b>each team's distance to the venue</b> (tournament proximity), NCAA/conference-tournament flags and same-conference games. Five seeds are averaged.</p>
       <h2>5 · Ratings from the model</h2>
-      <p>The <b>Power</b> rating is each team's average predicted margin against every other D-I team on a neutral floor, computed by running the network on all ~66,000 pairs. <b>Matchup edge</b> is how far a specific forecast departs from the gap in power ratings.</p>
+      <p>The <b>Power</b> rating comes from running the network on all ~66,000 pairs on a neutral floor. It is each team's average predicted margin <b>per 100 possessions against the top 100 teams</b>. Per-possession keeps it tempo-neutral, on the same scale as AdjEM. The strong reference group measures strength against tournament-calibre teams, not how badly a team beats the weakest D-I teams. The displayed rating is the <b>average of this network rating and AdjEM</b>. Tested on 2024–26, that blend measured in late November tracked end-of-season strength better than either one alone (correlation 0.960–0.972 vs 0.946–0.967). Game and bracket probabilities still come straight from the network, which is the better game-level predictor. <b>Matchup edge</b> is how far a specific forecast departs from the gap in power ratings.</p>
       <h2>6 · Bracket</h2>
       <p>2027 uses the new <b>76-team</b> format with a 12-game Opening Round (Dayton and Wichita). Until Selection Sunday, the field is projected: conference champions (or the best team in each conference) plus the best at-larges, seeded on an S-curve, with protected seeds placed at the nearest first-round site. After the bracket is announced it's read from ESPN automatically. Advancement odds are exact, from propagating each game's probability through the tree with venue-specific travel.</p>
       <h2>Refresh</h2>

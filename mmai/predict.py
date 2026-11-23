@@ -86,23 +86,47 @@ def predict_pairs(bundle, state, pairs):
     return df
 
 
+REF_GROUP = 100  # power = margin per 100 possessions vs the top-N teams (tournament-calibre opposition)
+
+
 def power_ratings(bundle, state: pd.DataFrame) -> pd.DataFrame:
-    """Round-robin through the network on a neutral floor -> each team's average margin."""
+    """Round-robin through the network on a neutral floor.
+
+    power_net = average predicted margin **per 100 possessions** against the top ``REF_GROUP`` teams;
+    power = 50/50 blend of power_net and AdjEM (see below).
+    Per-possession keeps it tempo-neutral (fast teams' point margins are not inflated); the
+    strong reference group measures what matters in March instead of how badly a team
+    beats the weakest D-I teams.
+    """
     teams = state.index.tolist()
     n = len(teams)
     ia, ib = np.triu_indices(n, 1)
     pairs = pd.DataFrame({"team_a": np.array(teams)[ia], "team_b": np.array(teams)[ib], "loc": 0})
     df = predict_pairs(bundle, state, pairs)
+    tempo = state["adjt"].fillna(state["adjt"].mean()).to_numpy()
+    poss = (tempo[ia] + tempo[ib]) / 2
     M = np.zeros((n, n))
+    M100 = np.zeros((n, n))
     P = np.full((n, n), 0.5)
     M[ia, ib] = df["margin"].to_numpy()
-    M[ib, ia] = -df["margin"].to_numpy()
+    M[ib, ia] = -M[ia, ib]
+    M100[ia, ib] = 100 * df["margin"].to_numpy() / poss
+    M100[ib, ia] = -M100[ia, ib]
     P[ia, ib] = df["p_a"].to_numpy()
-    P[ib, ia] = 1 - df["p_a"].to_numpy()
+    P[ib, ia] = 1 - P[ia, ib]
+    vs_all = M100.sum(1) / (n - 1)
+    ref = np.argsort(-vs_all)[: min(REF_GROUP, n - 1)]
+    mask = np.zeros((n, n), bool)
+    mask[:, ref] = True
+    np.fill_diagonal(mask, False)
     out = pd.DataFrame(index=teams)
-    out["power"] = M.sum(1) / (n - 1)
+    out["power_net"] = (M100 * mask).sum(1) / mask.sum(1)
+    out["power_all"] = vs_all
+    # Displayed rating = 50/50 blend of the network's view and adjusted efficiency. Validated on
+    # 2024-26: late-November blends correlate better with end-of-season strength than either alone.
+    em = state["adjem"].reindex(teams).to_numpy()
+    out["power"] = np.where(np.isnan(em), out["power_net"], 0.5 * out["power_net"] + 0.5 * em)
     out["win_vs_avg"] = P.sum(1) / (n - 1)
-    # win probability vs a typical top-25 team (bubble -> elite context)
     top = np.argsort(-out["power"].to_numpy())[:25]
     out["win_vs_top25"] = P[:, top].mean(1)
     out = out.sort_values("power", ascending=False)

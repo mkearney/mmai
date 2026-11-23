@@ -110,6 +110,10 @@ def _game_type(r) -> str:
 def _pid_index(season: int):
     """(name, team) -> pid and unique name -> pid from the last two Torvik seasons."""
     frames = []
+    snap = history.load_snapshot(season)
+    if snap is not None and len(snap[1]):
+        cur = snap[1].drop_duplicates("pid", keep="last")[["player", "team", "pid", "cls"]]
+        frames.append(cur.assign(season=season, cls=cur["cls"].map({"So": "Fr", "Jr": "So", "Sr": "Jr"})))
     for s in (season - 1, season - 2):
         if history.path("ps", s).exists():
             frames.append(history.load_ps(s)[["player", "team", "pid", "cls"]].assign(season=s))
@@ -124,6 +128,9 @@ def _pid_index(season: int):
     nxt = {"Fr": "So", "So": "Jr", "Jr": "Sr", "Sr": "Sr"}
     last = ps.drop_duplicates("pid")
     cls = {int(p): nxt.get(str(c), None) for p, c in zip(last["pid"], last["cls"])}
+    if snap is not None and len(snap[1]):  # this season's own classes win
+        cur_cls = snap[1].dropna(subset=["cls"]).drop_duplicates("pid", keep="last")
+        cls.update({int(p): str(c) for p, c in zip(cur_cls["pid"], cur_cls["cls"])})
     return by_team, by_name, cls
 
 
@@ -196,11 +203,20 @@ def build_current(season: int, eg: pd.DataFrame, cw: pd.DataFrame, workers: int 
         row["a_won"] = bool(row["pts_a"] > row["pts_b"]) if row["played"] else False
         g_rows.append(row)
     games = pd.DataFrame(g_rows)
+    snap = history.load_snapshot(season)
+    snap_pg = snap_ps = None
+    if snap is not None:
+        sg, snap_pg, snap_ps = snap
+        cutoff = sg.loc[sg["played"], "date"].max()
+        games = pd.concat([sg[sg["played"] & (sg["date"] <= cutoff)], games[games["date"] > cutoff]],
+                          ignore_index=True)
+        p_rows = [r for r in p_rows if r["date"] > cutoff]
+        print(f"  using Torvik snapshot through {cutoff:%Y-%m-%d}; ESPN for later games")
     for side in ("a", "b"):
         for k in ("fgm", "fga", "tpm", "tpa", "ftm", "fta", "orb", "drb", "trb", "ast", "stl", "blk", "tov", "pf", "pts"):
             if f"{side}_{k}" not in games:
                 games[f"{side}_{k}"] = np.nan
-    pg = box_pm(pd.DataFrame(p_rows), _current_em(games)) if p_rows else pd.DataFrame()
+    pg = box_pm(pd.DataFrame(p_rows), _current_em(games)) if p_rows else pd.DataFrame(columns=["season"])
     if len(pg):
         prev = history.load_pg(season - 1) if history.path("pg", season - 1).exists() else None
         if prev is not None:  # carry heights over from last season
@@ -209,11 +225,18 @@ def build_current(season: int, eg: pd.DataFrame, cw: pd.DataFrame, workers: int 
         keep = ["season", "date", "muid", "team", "opponent", "loc", "player", "pid", "cls", "inches", "min",
                 "ortg", "usage", "bpm", "obpm", "dbpm", "pts", "poss"]
         pg = pg[keep].astype({"cls": "string", "loc": "string"})
+    if snap_pg is not None:
+        pg = pd.concat([snap_pg, pg], ignore_index=True) if len(pg) else snap_pg
+        pg = pg.astype({"cls": "string", "loc": "string"})
     games.to_parquet(PROC / f"tv_games_{season}.parquet")
     pg.to_parquet(PROC / f"pg_{season}.parquet")
-    pd.DataFrame(columns=history.PS_COLS).to_parquet(PROC / f"ps_{season}.parquet")
+    (snap_ps if snap_ps is not None and len(snap_ps) else pd.DataFrame(columns=history.PS_COLS)).to_parquet(
+        PROC / f"ps_{season}.parquet")
     conf.to_parquet(PROC / f"conf_{season}.parquet")
-    MARKER.write_text(f"espn {season}")
+    cut = ""
+    if snap is not None:
+        cut = f" {sg.loc[sg['played'], 'date'].max():%Y-%m-%d}"
+    MARKER.write_text(f"espn {season}{cut}")
     return games
 
 
@@ -267,4 +290,11 @@ def conferences(season: int, cw: pd.DataFrame) -> pd.DataFrame:
 
 
 def active(season: int) -> bool:
-    return MARKER.exists() and MARKER.read_text().strip() == f"espn {season}"
+    return MARKER.exists() and MARKER.read_text().split()[:2] == ["espn", str(season)]
+
+
+def snapshot_date(season: int) -> str | None:
+    if not active(season):
+        return None
+    parts = MARKER.read_text().split()
+    return parts[2] if len(parts) > 2 else None

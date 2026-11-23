@@ -6,7 +6,7 @@ Daily men's college basketball **power ratings** and **NCAA tournament predictio
 
 | | |
 |---|---|
-| Ratings | Power (network round-robin), AdjO/AdjD/AdjEM/Tempo, Elo, roster strength, injury adjustment, SOS |
+| Ratings | Power (per 100 possessions vs the top 100: average of the network's round-robin and AdjEM), AdjO/AdjD/AdjEM/Tempo, Elo, roster strength, injury adjustment, SOS |
 | Bracket | 2027 76-team format; projected until Selection Sunday, then read from ESPN automatically |
 | Matchup Lab | any two teams, any venue; the network runs in the browser |
 | Backtest | 2012–2026 tournaments: MMAI net log loss **0.526** vs efficiency-only 0.544, Elo 0.565, seeds 0.577; **0.519 vs 0.542** for T-Rank pre-game lines on the same games |
@@ -34,7 +34,7 @@ python -m mmai publish   # re-export the site from cached features (fast)
 python -m mmai history   # after a season ends: refresh the committed history/ bundle
 ```
 
-If barttorvik.com refuses a request (it has blocked GitHub's runners), the current season is rebuilt from ESPN instead: games and box scores from the game-summary endpoint, player values from a box-score formula calibrated on Torvik's game values, and conferences from ESPN standings. This path agrees with the Torvik path at about r = 0.99 on efficiency and 0.97 on power ratings. The site header notes when it was used.
+Any run that can reach barttorvik.com saves a snapshot of the current season to `history/snap_*`. If Torvik refuses a request (it has blocked GitHub's runners), the snapshot is used and only games after it are filled in from ESPN. Run `python -m mmai daily` from your own machine and push now and then to refresh the snapshot. With no snapshot at all, the whole current season is rebuilt from ESPN: games and box scores from the game-summary endpoint, player values from a box-score formula calibrated on Torvik's game values, and conferences from ESPN standings. This path agrees with the Torvik path at about r = 0.99 on efficiency and 0.97 on power ratings. The site header notes when it was used.
 
 Completed seasons ship in `history/` (about 23 MB of compact parquet), so a run only downloads the current season. After a season ends, run `python -m mmai history` and commit `history/`. To preview locally: `cd docs && python -m http.server`.
 
