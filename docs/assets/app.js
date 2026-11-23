@@ -25,8 +25,8 @@
   };
   const slugify = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const logo = (t, cls = "") => (t && t.logo ? `<img class="logo ${cls}" src="${esc(t.logo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : `<span class="logo ${cls}"></span>`);
-  const teamLink = (name, t) => `<a href="#/team/${slugify(name)}" class="teamcell">${logo(t)}<span class="teamname">${esc(name)}</span></a>`;
-  const locWord = (l) => (l > 0 ? "vs" : l < 0 ? "@" : "vs (N)");
+  const teamLink = (name, t) => `<a href="#/team/${slugify(name)}" class="teamcell" title="${esc(name)}">${logo(t)}<span class="teamname">${esc(name)}</span></a>`;
+  const locWord = (l) => (l > 0 ? "vs" : l < 0 ? "@" : "N");
 
   let TEAMS = {}; // name -> rating row
   async function teams() {
@@ -91,8 +91,8 @@
       ["eff_o", "AdjO", 1, false, "Adjusted offensive efficiency (pts / 100 poss)"],
       ["eff_d", "AdjD", 1, true, "Adjusted defensive efficiency (lower is better)"],
       ["adjem", "AdjEM", 1, false, "AdjO − AdjD"],
-      ["adjt", "Tempo", 1, false, "Adjusted possessions / 40 min"],
-      ["elo", "Elo", 0, false, "Margin-aware Elo"],
+      ["adjt", "Tempo", 1, false, "Adjusted possessions / 40 min", true],
+      ["elo", "Elo", 0, false, "Margin-aware Elo", true],
       ["roster", "Roster", 1, false, "Player-based strength: Σ minutes share × player value"],
       ["injury_pts", "Inj", 1, false, "Availability adjustment in points (injuries / absences)"],
       ["sos", "SOS", 1, false, "Average power of opponents faced"],
@@ -129,7 +129,7 @@
         <select id="conf"><option value="">All conferences</option>${confs.map((c) => `<option ${c === ratingsState.conf ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
         <div class="seg" id="view">${["core", "offense", "defense", "roster"].map((v) => `<button data-v="${v}" class="${v === ratingsState.view ? "on" : ""}">${v[0].toUpperCase() + v.slice(1)}</button>`).join("")}</div>
       </div>
-      <div class="card table-wrap"><table id="tbl"></table></div>`;
+      <div class="card table-wrap"><table id="tbl" class="ratings-table"></table></div>`;
     $("#q").addEventListener("input", (e) => { ratingsState.q = e.target.value; drawRatings(r); });
     $("#conf").addEventListener("change", (e) => { ratingsState.conf = e.target.value; drawRatings(r); });
     $("#view").addEventListener("click", (e) => {
@@ -152,7 +152,7 @@
       return d * ((x ?? -1e9) - (y ?? -1e9));
     });
     const th = (key, label, cls = "", title = "") => `<th data-k="${key}" class="${cls} ${k === key ? "sorted" : ""}" title="${esc(title)}">${label}${k === key ? (d > 0 ? " ↑" : " ↓") : ""}</th>`;
-    const head = `<thead><tr>${th("rank", "#", "rankcol")}${th("team", "Team", "l")}${th("conf", "Conf", "l hide-sm")}${th("wins", "W-L")}${cols.map(([key, lab, , , title]) => th(key, lab, "", title || "")).join("")}</tr></thead>`;
+    const head = `<thead><tr>${th("rank", "#", "rankcol")}${th("team", "Team", "l")}${th("conf", "Conf", "l hide-sm")}${th("wins", "W-L")}${cols.map(([key, lab, , , title, low]) => th(key, lab, low ? "lowprio" : "", title || "")).join("")}</tr></thead>`;
     const body = rows.map((t) => {
       let mv = "";
       if (t.adjem_rank_week_ago && t.adjem_rank) {
@@ -160,14 +160,14 @@
         if (ch >= 3) mv = `<span class="up" title="AdjEM rank change, 7 days">▲${ch}</span>`;
         else if (ch <= -3) mv = `<span class="down" title="AdjEM rank change, 7 days">▼${-ch}</span>`;
       }
-      const cells = cols.map(([key, , dg, inv]) => {
+      const cells = cols.map(([key, , dg, inv, , low]) => {
         const v = t[key];
         const p = pctRank(dist[key], v);
         const rk = t[key + "_rank"] ? `<span class="rk">${t[key + "_rank"]}</span>` : "";
         const txt = key === "injury_pts" ? (Math.abs(v) < 0.05 ? "<span class='faint'>—</span>" : `<span class="${v < 0 ? "loss" : "win"}">${sgn(v)}</span>`)
           : key === "power" ? `<span class="big-num">${sgn(v)}</span>` : fmt(v, dg);
         const style = key === "power" || key === "injury_pts" ? "" : heat(p, inv);
-        return `<td><span class="heat" style="${style}">${txt}</span>${rk}</td>`;
+        return `<td class="${low ? "lowprio" : ""}"><span class="heat" style="${style}">${txt}</span>${rk}</td>`;
       }).join("");
       return `<tr><td class="rankcol">${t.rank} ${mv}</td><td class="l">${teamLink(t.team, t)}</td><td class="l hide-sm muted">${esc(t.conf || "")}</td><td class="muted">${t.wins}-${t.losses}</td>${cells}</tr>`;
     }).join("");
@@ -215,12 +215,13 @@
       const opp = T[g.opp];
       const res = g.played ? `<span class="${g.pts > g.opp_pts ? "win" : "loss"}">${g.pts > g.opp_pts ? "W" : "L"} ${g.pts}-${g.opp_pts}</span>` : `<span class="muted">${g.p != null ? pct(g.p) : ""}</span>`;
       const pre = g.played && g.p != null ? `<span class="faint small">pre ${pct(g.p)}</span>` : g.margin != null && !g.played ? `<span class="faint small">${sgn(g.margin)}</span>` : "";
-      return `<tr><td class="l muted">${g.date.slice(5)}</td><td class="l muted">${locWord(g.loc)}</td><td class="l">${opp ? teamLink(g.opp, opp) : esc(g.opp)}</td><td>${res}</td><td>${pre}</td></tr>`;
+      return `<tr><td class="l muted">${g.date.slice(5)}</td><td class="l muted">${locWord(g.loc)}</td><td class="l">${opp ? teamLink(g.opp, opp) : esc(g.opp)}</td><td>${res}</td><td class="hide-sm">${pre}</td></tr>`;
     }).join("");
     const roster = d.roster.map((p) => {
-      const st = p.status ? `<span class="chip ${p.avail < 0.3 ? "neg" : "acc"}">${esc(p.status)}</span>` : p.avail < 0.7 ? `<span class="chip">likely out (missed recent games)</span>` : "";
-      const w = Math.min(56, Math.max(2, (p.value + 6) * 3.5));
-      return `<tr><td class="l"><span class="teamname">${esc(p.player)}</span> ${st}</td><td class="muted">${esc(p.cls || "")}</td><td class="muted hide-sm">${p.inches ? `${Math.floor(p.inches / 12)}-${p.inches % 12}` : ""}</td><td>${fmt(p.mpg)}</td><td><span class="mini" style="width:${w}px;background:${p.value >= 0 ? "var(--pos)" : "var(--neg)"}"></span> ${sgn(p.value)}</td><td class="hide-sm">${sgn(p.o)}</td><td class="hide-sm">${sgn(p.d)}</td></tr>`;
+      const st = p.status ? `<div class="pstatus"><span class="chip ${p.avail < 0.3 ? "neg" : "acc"}">${esc(p.status)}</span></div>`
+        : p.avail < 0.7 ? `<div class="pstatus"><span class="chip" title="Has missed recent games; treated as probably unavailable">likely out</span></div>` : "";
+      const w = Math.min(40, Math.max(2, (p.value + 6) * 2.5));
+      return `<tr><td class="l wrap"><span class="teamname" style="display:block">${esc(p.player)}</span>${st}</td><td class="muted">${esc(p.cls || "")}</td><td class="muted hide-sm hide-md">${p.inches ? `${Math.floor(p.inches / 12)}-${p.inches % 12}` : ""}</td><td>${fmt(p.mpg)}</td><td><span class="mini" style="width:${w}px;background:${p.value >= 0 ? "var(--pos)" : "var(--neg)"}"></span> ${sgn(p.value)}</td><td class="hide-sm">${sgn(p.o)}</td><td class="hide-sm">${sgn(p.d)}</td></tr>`;
     }).join("");
     app.innerHTML = `
       <div class="team-hero" style="--team:${color}">
@@ -243,9 +244,9 @@
           ${profile.map(([lab, ko, io, kd, id]) => `<div class="profile-row" style="grid-template-columns:110px 1fr 40px 1fr 40px"><div class="lab">${lab}</div>${bar(ko, io)}${bar(kd, id)}</div>`).join("")}
         </div>
       </div>
-      <div class="grid cols-2" style="margin-top:16px">
+      <div class="grid cols-2 stack-md" style="margin-top:16px">
         <div class="card"><div class="pad" style="padding:16px 20px 4px"><h3>Roster · player values</h3><div class="small muted">Value = points per 100 possessions above an average D-I player (blend of last season and this season's box-score impact).</div></div>
-          <div class="table-wrap"><table><thead><tr><th class="l">Player</th><th>Cl</th><th class="hide-sm">Ht</th><th>MPG</th><th>Value</th><th class="hide-sm">Off</th><th class="hide-sm">Def</th></tr></thead><tbody>${roster}</tbody></table></div></div>
+          <div class="table-wrap"><table><thead><tr><th class="l">Player</th><th>Cl</th><th class="hide-sm hide-md">Ht</th><th>MPG</th><th>Value</th><th class="hide-sm">Off</th><th class="hide-sm">Def</th></tr></thead><tbody>${roster}</tbody></table></div></div>
         <div class="card"><div class="pad" style="padding:16px 20px 4px"><h3>Schedule</h3></div>
           <div class="table-wrap"><table><tbody>${sched}</tbody></table></div></div>
       </div>`;

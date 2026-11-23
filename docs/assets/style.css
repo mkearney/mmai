@@ -79,6 +79,7 @@ h3 { font-size: 14px; margin: 0 0 8px; color: var(--muted); font-weight: 600; te
 .grid { display: grid; gap: 16px; }
 .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid > * { min-width: 0; } /* let wide tables scroll inside their card instead of stretching the grid */
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
 .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
 .stat .k { color: var(--muted); font-size: 12px; font-weight: 500; }
@@ -98,7 +99,9 @@ input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px v
 /* table */
 .table-wrap { overflow-x: auto; border-radius: var(--radius); }
 table { width: 100%; border-collapse: separate; border-spacing: 0; }
-th, td { padding: 9px 10px; text-align: right; white-space: nowrap; }
+th, td { padding: 9px 7px; text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { padding-left: 14px; }
+th:last-child, td:last-child { padding-right: 14px; }
 th { position: sticky; top: 0; background: var(--surface); color: var(--muted); font-weight: 600; font-size: 12px;
   border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; z-index: 1; }
 th:hover { color: var(--text); }
@@ -107,8 +110,12 @@ td { border-bottom: 1px solid var(--border); }
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover td { background: var(--surface-2); }
 th.l, td.l { text-align: left; }
-td .rk { color: var(--faint); font-size: 11px; margin-left: 4px; }
-.teamcell { display: flex; align-items: center; gap: 10px; min-width: 190px; }
+td .rk { color: var(--faint); font-size: 10.5px; margin-left: 3px; display: inline-block; min-width: 18px; text-align: left; }
+.teamcell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ratings-table .teamcell { min-width: 150px; }
+.teamname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 210px; }
+td.wrap { white-space: normal; }
+.pstatus { margin-top: 3px; }
 .logo { width: 22px; height: 22px; object-fit: contain; flex: none; }
 .logo.lg { width: 64px; height: 64px; }
 .logo.md { width: 30px; height: 30px; }
@@ -119,7 +126,7 @@ td .rk { color: var(--faint); font-size: 11px; margin-left: 4px; }
 .big-num { font-weight: 700; font-size: 15px; }
 .up { color: var(--pos); font-size: 11px; }
 .down { color: var(--neg); font-size: 11px; }
-.heat { border-radius: 6px; padding: 2px 6px; display: inline-block; min-width: 46px; }
+.heat { border-radius: 6px; padding: 2px 5px; display: inline-block; min-width: 40px; text-align: right; }
 .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--surface-2); color: var(--muted); }
 .chip.neg { background: var(--neg-soft); color: var(--neg); }
 .chip.pos { background: var(--pos-soft); color: var(--pos); }
@@ -163,7 +170,7 @@ td .rk { color: var(--faint); font-size: 11px; margin-left: 4px; }
 .bracket-scroll { overflow-x: auto; padding-bottom: 8px; }
 .region { margin-bottom: 26px; }
 .region-title { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
-.rounds { display: grid; grid-template-columns: repeat(5, minmax(170px, 1fr)); gap: 14px; min-width: 900px; }
+.rounds { display: grid; grid-template-columns: repeat(5, minmax(156px, 1fr)); gap: 12px; min-width: 836px; }
 .round-col { display: flex; flex-direction: column; justify-content: space-around; gap: 8px; }
 .rounds-head { margin-bottom: 8px; }
 .rounds-head h4, .round-col h4 { margin: 0 0 4px; font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: .08em; }
@@ -198,8 +205,19 @@ td .rk { color: var(--faint); font-size: 11px; margin-left: 4px; }
 .prose code { font-family: var(--mono); font-size: 12px; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
 .best { font-weight: 700; color: var(--pos); }
 
+/* below ~1180px the rank suffixes in the ratings table are what push it past the container */
+@media (max-width: 1180px) {
+  .ratings-table td .rk { display: none; }
+  .hide-md { display: none; }
+}
+@media (max-width: 1100px) {
+  .grid.cols-2.stack-md { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 1080px) and (min-width: 861px) {
+  .ratings-table .lowprio { display: none; }
+}
 @media (max-width: 860px) {
-  .grid.cols-2, .grid.cols-3 { grid-template-columns: 1fr; }
+  .grid.cols-2, .grid.cols-3 { grid-template-columns: minmax(0, 1fr); }
   .updated { display: none; }
   .topbar-inner { gap: 12px; }
   h1 { font-size: 24px; }
@@ -210,8 +228,13 @@ td .rk { color: var(--faint); font-size: 11px; margin-left: 4px; }
   .logo.lg { width: 48px; height: 48px; }
   .ff { grid-template-columns: 1fr; }
   .hide-sm { display: none; }
-  .teamcell { min-width: 130px; }
-  th, td { padding: 8px 7px; }
+  .ratings-table .teamcell { min-width: 120px; }
+  .teamname { max-width: 140px; }
+  th, td { padding: 8px 6px; }
+  th:first-child, td:first-child { padding-left: 10px; }
+  /* keep the team visible while scrolling the wide ratings table sideways on phones */
+  .ratings-table th:nth-child(2), .ratings-table td:nth-child(2) { position: sticky; left: 0; z-index: 2; background: var(--surface); }
+  .ratings-table tbody tr:hover td:nth-child(2) { background: var(--surface-2); }
   .game { grid-template-columns: 1fr 90px 1fr; padding: 10px 12px; }
   .game .mid { min-width: 90px; }
 }
