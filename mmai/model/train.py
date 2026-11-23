@@ -15,6 +15,9 @@ torch.set_num_threads(4)
 
 CENTER_SEASON = ["eff_o", "eff_d"] + [f"{s}_{side}" for s in STYLE for side in ("o", "d")] + ["adjt"]
 EPOCHS = 14
+ROSTER_COLS = ["roster", "roster_o", "roster_d", "avail_delta", "height", "experience", "star", "bench", "continuity"]
+ROSTER_IDX = torch.tensor([TEAM_FEATS.index(c) for c in ROSTER_COLS])
+ROSTER_DROPOUT = 0.0  # tested 0.05-0.15: hurts accuracy; missing roster is imputed instead
 N_MODELS = 5
 
 
@@ -65,7 +68,7 @@ class Normalizer:
 
     def __call__(self, x):
         z = (x - self.mean) / self.std
-        return np.nan_to_num(np.clip(z, -6, 6))
+        return np.nan_to_num(np.clip(z, -5, 5))
 
     def to_dict(self):
         return {"mean": self.mean.tolist(), "std": self.std.tolist()}
@@ -104,7 +107,12 @@ def train_models(df: pd.DataFrame, smeans, n_models=N_MODELS, epochs=EPOCHS, see
             # random side swap = data augmentation (model is antisymmetric anyway)
             for i in range(0, n, 1024):
                 idx = perm[i:i + 1024]
-                mu, sg = net(xa_t[idx], xb_t[idx], cx_t[idx])
+                ba, bb = xa_t[idx].clone(), xb_t[idx].clone()
+                # feature-group dropout: teach the net to cope with missing player data
+                for bx in (ba, bb) if ROSTER_DROPOUT > 0 else ():
+                    drop = torch.rand(len(idx)) < ROSTER_DROPOUT
+                    bx[drop.nonzero(as_tuple=True)[0][:, None], ROSTER_IDX] = 0.0
+                mu, sg = net(ba, bb, cx_t[idx])
                 loss = gaussian_nll(mu, sg, y_t[idx], w_t[idx])
                 opt.zero_grad()
                 loss.backward()

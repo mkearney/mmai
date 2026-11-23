@@ -24,6 +24,15 @@ def team_state(snaps: pd.DataFrame, extras: dict, conf: pd.DataFrame, meta: pd.D
     form = extras["team_form"]
     st["form"] = form.loc[season].reindex(st.index).fillna(0.0) if season in form.index.get_level_values(0) else 0.0
     st = st[st["games"] > 0].copy()  # D-I teams that have played this season
+    # impute missing player-layer features (rare data gaps) from efficiency so the net stays in-distribution
+    miss = st["roster"].isna()
+    if miss.any():
+        st.loc[miss, "roster"] = st.loc[miss, "adjem"]
+        st.loc[miss, "roster_o"] = st.loc[miss, "eff_o"] - st["mu"].mean()
+        st.loc[miss, "roster_d"] = st["mu"].mean() - st.loc[miss, "eff_d"]
+        st.loc[miss, "avail_delta"] = 0.0
+        for c in ("height", "experience", "star", "bench", "continuity"):
+            st.loc[miss, c] = st[c].median() if st[c].notna().any() else np.nan
     c = conf[conf["season"] == season].drop_duplicates("team").set_index("team")["conf"]
     st["conf"] = c.reindex(st.index)
     m = meta.drop_duplicates("team").set_index("team")
