@@ -54,8 +54,10 @@ def _parse_pred(s: str) -> tuple[str | None, float | None]:
     return m.group(1), int(m.group(2)) / 100.0
 
 
-def super_sked(season: int) -> pd.DataFrame:
-    raw = cached_bytes(f"{BASE}/{season}_super_sked.csv", OUT / f"{season}_super_sked.csv", refresh=_refresh(season))
+def super_sked(season: int, raw: bytes | None = None) -> pd.DataFrame:
+    if raw is None:
+        raw = cached_bytes(f"{BASE}/{season}_super_sked.csv", OUT / f"{season}_super_sked.csv",
+                           refresh=_refresh(season))
     s = pd.read_csv(io.BytesIO(raw), header=None, low_memory=False)
     out = pd.DataFrame({
         "gid": s[0].astype(str),
@@ -117,6 +119,24 @@ def super_sked(season: int) -> pd.DataFrame:
     prob = pd.Series(prob, dtype=float)
     out["torvik_p_a"] = np.where(fav == out["team_a"], prob, np.where(fav == out["team_b"], 1 - prob, np.nan))
     return out
+
+
+def probe(season: int) -> bytes | None:
+    """Fresh download of the current super_sked, or None if Torvik refuses (no stale fallback)."""
+    import os
+
+    from ..http import get
+
+    try:
+        if os.environ.get("MMAI_FORCE_ESPN"):
+            raise RuntimeError("MMAI_FORCE_ESPN set")
+        raw = get(f"{BASE}/{season}_super_sked.csv", retries=2).content
+    except Exception as e:
+        print(f"  Torvik unavailable ({e}); switching current season to ESPN")
+        return None
+    OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / f"{season}_super_sked.csv").write_bytes(raw)
+    return raw
 
 
 def player_games(season: int) -> pd.DataFrame:

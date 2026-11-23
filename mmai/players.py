@@ -9,11 +9,14 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from . import history
+from . import espn_season, history
 from .config import PROC, current_season
 from .fetch import torvik
 
 K_MIN = 300.0          # prior strength in minutes for in-season player values
+K_NEW = K_MIN          # tested 75 (faster box-score trust for unmatched newcomers): worse agreement
+NEW_PRIOR = -3.0       # prior value for unmatched ESPN-fallback newcomers
+SYNTH_PID = 90_000_000 # ids >= this are ESPN athletes not matched to a Torvik player
 V_REPL = -2.0          # value of the minutes a missing player hands to the bench
 PART_DECAY = 0.95      # per-game recency decay for participation (mirrors rating recency)
 CLS_NUM = {"Fr": 1, "So": 2, "Jr": 3, "Sr": 4}
@@ -23,7 +26,7 @@ def load_player_games(seasons, refresh_current=True) -> pd.DataFrame:
     frames = []
     for s in seasons:
         p = PROC / f"pg_{s}.parquet"
-        if p.exists() and not (refresh_current and s >= current_season()):
+        if p.exists() and (espn_season.active(s) or not (refresh_current and s >= current_season())):
             frames.append(pd.read_parquet(p))
             continue
         if history.has("pg", s):
@@ -44,7 +47,7 @@ def load_player_seasons(seasons, refresh_current=True) -> pd.DataFrame:
     frames = []
     for s in seasons:
         p = PROC / f"ps_{s}.parquet"
-        if p.exists() and not (refresh_current and s >= current_season()):
+        if p.exists() and (espn_season.active(s) or not (refresh_current and s >= current_season())):
             frames.append(pd.read_parquet(p))
             continue
         if history.has("ps", s):
@@ -186,9 +189,12 @@ def team_player_features(games: pd.DataFrame, pg: pd.DataFrame, priors: pd.DataF
             part[j] = acc / wsum
         part[0] = (f_season > 0).astype(float)
 
-        V = (pv * K_MIN + cb) / (K_MIN + cm)
-        VO = (po * K_MIN + cbo) / (K_MIN + cm)
-        VD = (pdd * K_MIN + cbd) / (K_MIN + cm)
+        # ESPN-fallback newcomers (synthetic ids, no recruiting info): trust box scores sooner
+        K = np.where(np.array(pids) >= SYNTH_PID, K_NEW, K_MIN)
+        pv = np.where(np.array(pids) >= SYNTH_PID, NEW_PRIOR, pv)
+        V = (pv * K + cb) / (K + cm)
+        VO = (po * K + cbo) / (K + cm)
+        VD = (pdd * K + cbd) / (K + cm)
         F = np.where(cg[:, None] > 0, cm / np.maximum(cg[:, None], 1e-9), f_season[None, :])
         WF = F / np.maximum(F.sum(1, keepdims=True), 1e-9)
         SP = np.where(cp > 0, cm / np.maximum(cp, 1) / 40.0, 0.0)

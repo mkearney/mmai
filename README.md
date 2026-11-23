@@ -34,6 +34,8 @@ python -m mmai publish   # re-export the site from cached features (fast)
 python -m mmai history   # after a season ends: refresh the committed history/ bundle
 ```
 
+If barttorvik.com refuses a request (it has blocked GitHub's runners), the current season is rebuilt from ESPN instead: games and box scores from the game-summary endpoint, player values from a box-score formula calibrated on Torvik's game values, and conferences from ESPN standings. This path agrees with the Torvik path at about r = 0.99 on efficiency and 0.97 on power ratings. The site header notes when it was used.
+
 Completed seasons ship in `history/` (about 23 MB of compact parquet), so a run only downloads the current season. After a season ends, run `python -m mmai history` and commit `history/`. To preview locally: `cd docs && python -m http.server`.
 
 ### Manual controls

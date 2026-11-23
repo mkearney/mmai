@@ -15,9 +15,23 @@ from .fetch import espn, torvik
 
 
 # --------------------------------------------------------------------------- games
-def torvik_games(seasons, refresh_current=True) -> pd.DataFrame:
+def torvik_games(seasons, refresh_current=True, eg: pd.DataFrame | None = None) -> pd.DataFrame:
+    from . import espn_season
+
     frames = []
     for s in seasons:
+        if refresh_current and s >= current_season():
+            raw = torvik.probe(s)
+            if raw is None and eg is not None:
+                cw = pd.read_csv(ARTIFACTS / "crosswalk.csv", dtype={"espn_id": str})
+                frames.append(espn_season.build_current(s, eg, cw))
+                continue
+            if raw is not None:
+                espn_season.MARKER.write_text(f"torvik {s}")
+                g = torvik.super_sked(s, raw)
+                g.to_parquet(PROC / f"tv_games_{s}.parquet")
+                frames.append(g)
+                continue
         p = PROC / f"tv_games_{s}.parquet"
         if p.exists() and not (refresh_current and s >= current_season()):
             frames.append(pd.read_parquet(p))
@@ -212,7 +226,7 @@ def attach_espn(tg: pd.DataFrame, eg: pd.DataFrame, cw: pd.DataFrame, meta: pd.D
         g[c] = pd.to_numeric(g[c], errors="coerce").where(g["is_ncaa"])
 
     # venue coordinates: home team's city for true home games, ESPN venue otherwise
-    m = meta.set_index("espn_id")
+    m = meta.drop_duplicates("espn_id").set_index("espn_id")
     lat_a, lon_a = g["a_id"].map(m["lat"]), g["a_id"].map(m["lon"])
     lat_b, lon_b = g["b_id"].map(m["lat"]), g["b_id"].map(m["lon"])
     vll = [geo.geocode(c, s) if isinstance(c, str) and c else None for c, s in zip(g["city"], g["state"])]
@@ -228,13 +242,14 @@ def attach_espn(tg: pd.DataFrame, eg: pd.DataFrame, cw: pd.DataFrame, meta: pd.D
 
 def build(seasons=None, refresh_current=True):
     seasons = seasons or list(range(FIRST_SEASON, current_season() + 1))
-    tg = torvik_games(seasons, refresh_current)
     eg = espn_games(seasons, refresh_current)
+    tg = torvik_games(seasons, refresh_current, eg)
     cw_path = ARTIFACTS / "crosswalk.csv"
     cw = build_crosswalk(tg, eg)
     if cw_path.exists():  # keep previously resolved names (e.g. defunct programs)
         old = pd.read_csv(cw_path, dtype={"espn_id": str})
         cw = pd.concat([cw, old[~old["team"].isin(cw["team"])]], ignore_index=True)
+    cw = cw.drop_duplicates("espn_id", keep="first").drop_duplicates("team", keep="first")
     cw.to_csv(cw_path, index=False)
     meta = team_meta(cw, eg)
     meta.to_csv(ARTIFACTS / "team_meta.csv", index=False)

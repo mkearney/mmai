@@ -80,7 +80,9 @@
   }
   window.addEventListener("hashchange", route);
 
-  get("meta.json").then((m) => ($("#updated").textContent = `Updated ${m.updated}`)).catch(() => {});
+  get("meta.json").then((m) => {
+    $("#updated").textContent = `Updated ${m.updated}` + (m.source === "espn" ? " · ESPN data (backup)" : "");
+  }).catch(() => {});
 
   // ================================================================ RATINGS
   const VIEWS = {

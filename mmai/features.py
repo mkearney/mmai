@@ -20,13 +20,16 @@ TEAM_FEATS = (
 
 
 def conferences(seasons) -> pd.DataFrame:
-    from . import history
+    from . import espn_season, history
 
     frames = []
     hist = pd.read_parquet(history.path("conf")) if history.path("conf").exists() else None
     for s in seasons:
         if hist is not None and s < current_season() and (hist["season"] == s).any():
             frames.append(hist[hist["season"] == s])
+            continue
+        if espn_season.active(s) and (PROC / f"conf_{s}.parquet").exists():
+            frames.append(pd.read_parquet(PROC / f"conf_{s}.parquet"))
             continue
         try:
             t = torvik.team_results(s)

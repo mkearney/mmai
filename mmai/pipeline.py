@@ -34,6 +34,8 @@ def slug(s: str) -> str:
 
 
 def _clean(v):
+    if v is pd.NA or v is pd.NaT:
+        return None
     if isinstance(v, (np.floating, float)):
         return None if (math.isnan(v) or math.isinf(v)) else round(float(v), 4)
     if isinstance(v, np.integer):
@@ -205,8 +207,10 @@ def stage_publish(games, meta, pg, conf, feat, snaps, live, extras, inj_report):
     bt = ARTIFACTS / "backtest.json"
     if bt.exists():
         write_json("backtest.json", json.loads(bt.read_text()))
+    from . import espn_season
+    source = "espn" if espn_season.active(season) else "torvik"
     write_json("meta.json", {
-        "updated": dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"), "season": season,
+        "updated": dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"), "season": season, "source": source,
         "n_teams": int(len(st)), "n_games_train": int(feat["played"].sum()),
         "seasons": [int(feat["season"].min()), int(feat["season"].max())],
         "injuries": records(inj_report.drop(columns=["pid"], errors="ignore")) if len(inj_report) else [],
