@@ -349,9 +349,10 @@
     (function walk(n) { if (!n || !n.children) return; walk(n.children[0]); if (n.round >= 1) ordered[n.round].push(n); walk(n.children[1]); })(root);
     const winner = root.pick;
     return `<div class="region"><div class="region-title"><h2 style="margin:0">${esc(name)}</h2><span class="muted small">${esc(ordered[3][0] && ordered[3][0].site || "")}</span></div>
-      <div class="bracket-scroll"><div class="rounds">
-        ${[1, 2, 3, 4].map((r) => `<div class="round-col"><h4>${ROUND_NAMES[r]}</h4>${ordered[r].map((n) => matchCard(n, T)).join("")}</div>`).join("")}
-        <div class="round-col"><h4>Regional champion</h4><div class="mu"><div class="row w"><span></span>${logo(T[winner])}<span class="ellip">${esc(winner || "")}</span><span></span></div></div></div>
+      <div class="bracket-scroll"><div class="rounds rounds-head">${[1, 2, 3, 4].map((r) => `<h4>${ROUND_NAMES[r]}</h4>`).join("")}<h4>Regional champion</h4></div>
+      <div class="rounds">
+        ${[1, 2, 3, 4].map((r) => `<div class="round-col">${ordered[r].map((n) => matchCard(n, T)).join("")}</div>`).join("")}
+        <div class="round-col"><div class="mu"><div class="row w"><span></span>${logo(T[winner])}<span class="ellip">${esc(winner || "")}</span><span></span></div></div></div>
       </div></div></div>`;
   }
 
@@ -465,7 +466,12 @@
     const total = ((ta.eff_o + tb.eff_d - lg) + (tb.eff_o + ta.eff_d - lg)) * tempo / 100;
     const pa = total / 2 + r.mu / 2, pb = total / 2 - r.mu / 2;
     const edge = neutralReg.mu - (ta.power - tb.power);
-    const ca = ta.color ? `#${ta.color}` : "var(--accent)", cb = tb.color ? `#${tb.color}` : "var(--blue)";
+    const rgb = (h) => h && /^[0-9a-f]{6}$/i.test(h) ? [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) : null;
+    const close = (x, y) => !x || !y || Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]) < 110;
+    const ca = ta.color ? `#${ta.color}` : "#f97316";
+    let cbHex = tb.color;
+    if (close(rgb(ta.color), rgb(cbHex))) cbHex = !close(rgb(ta.color), rgb(tb.alt_color)) && tb.alt_color && tb.alt_color.toLowerCase() !== "ffffff" ? tb.alt_color : (close(rgb(ta.color), [249, 115, 22]) ? "6b7280" : "f97316");
+    const cb = cbHex ? `#${cbHex}` : "#3b6fe0";
     const all = Object.values(T);
     const P = (k, v) => pctRank(all.map((t) => t[k]).filter((x) => x != null), v);
     // offense-vs-defense style duels (positive = advantage to the offense)
@@ -495,7 +501,7 @@
           <div class="stat"><div class="k">Predicted margin</div><div class="v">${sgn(r.mu)}</div><div class="r">${esc(A)} perspective</div></div>
           <div class="stat"><div class="k">Uncertainty (σ)</div><div class="v">${fmt(r.sigma)}</div><div class="r">points</div></div>
           <div class="stat"><div class="k">Power gap</div><div class="v">${sgn(ta.power - tb.power)}</div><div class="r">neutral, from ratings</div></div>
-          <div class="stat"><div class="k">Matchup edge</div><div class="v" style="color:${Math.abs(edge) < 0.3 ? "var(--text)" : edge > 0 ? ca : cb}">${sgn(edge)}</div><div class="r">${Math.abs(edge) < 0.3 ? "styles neutral" : `favors ${esc(edge > 0 ? A : B)}`}</div></div>
+          <div class="stat"><div class="k">Matchup edge</div><div class="v">${sgn(edge)}</div><div class="r">${Math.abs(edge) < 0.3 ? "styles neutral" : `favors ${esc(edge > 0 ? A : B)}`}</div></div>
           <div class="stat"><div class="k">Site effect</div><div class="v">${sgn(r.mu - neutral.mu)}</div><div class="r">home court / travel / context</div></div>
         </div>
       </div>

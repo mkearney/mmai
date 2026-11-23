@@ -147,7 +147,7 @@ def stage_publish(games, meta, pg, conf, feat, snaps, live, extras, inj_report):
     cols = ["slug", "rank", "power", "win_vs_avg", "win_vs_top25", "conf", "wins", "losses", "eff_o", "eff_d",
             "adjem", "adjt", "elo", "roster", "avail_delta", "injury_pts", "sos", "games", "form",
             "eff_o_rank", "eff_d_rank", "adjem_rank", "adjt_rank", "elo_rank", "roster_rank", "sos_rank",
-            "adjem_rank_week_ago", "espn_id", "location", "abbr", "color", "logo", "height", "experience",
+            "adjem_rank_week_ago", "espn_id", "location", "abbr", "color", "alt_color", "logo", "height", "experience",
             "continuity", "star", "bench"] + [f"{x}_{y}" for x in F.STYLE for y in ("o", "d")]
     cols = [c for c in cols if c in st.columns]
     out = st[cols].copy()

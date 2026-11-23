@@ -165,7 +165,8 @@ td .rk { color: var(--faint); font-size: 11px; margin-left: 4px; }
 .region-title { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
 .rounds { display: grid; grid-template-columns: repeat(5, minmax(170px, 1fr)); gap: 14px; min-width: 900px; }
 .round-col { display: flex; flex-direction: column; justify-content: space-around; gap: 8px; }
-.round-col h4 { margin: 0 0 4px; font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: .08em; }
+.rounds-head { margin-bottom: 8px; }
+.rounds-head h4, .round-col h4 { margin: 0 0 4px; font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: .08em; }
 .mu { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
 .mu .row { display: grid; grid-template-columns: 22px 18px 1fr auto; gap: 6px; align-items: center; padding: 5px 8px; font-size: 12px; }
 .mu .row + .row { border-top: 1px solid var(--border); }
