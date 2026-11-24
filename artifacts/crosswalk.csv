@@ -33,8 +33,8 @@ N.C. State,152,555,1.0
 Notre Dame,87,555,1.0
 Syracuse,183,555,1.0
 Alabama,333,554,1.0
-Memphis,235,554,1.0
 San Diego St.,21,553,0.9981949458483754
+Memphis,235,553,1.0
 Xavier,2752,552,0.9981916817359855
 Saint Mary's,2608,550,1.0
 Miami FL,2390,549,1.0
@@ -76,8 +76,8 @@ Clemson,228,533,1.0
 Western Kentucky,98,532,1.0
 Middle Tennessee,2393,532,1.0
 Iona,314,531,1.0
+Belmont,2057,531,1.0
 Oakland,2473,531,0.9981203007518797
-Belmont,2057,530,1.0
 Washington,264,530,1.0
 Boston College,103,530,1.0
 Georgia,61,529,1.0
@@ -92,12 +92,12 @@ UTEP,2638,528,1.0
 UNC Asheville,2427,528,1.0
 California,25,527,1.0
 Oral Roberts,198,527,0.9981060606060606
-Louisiana,309,526,0.9981024667931688
-Akron,2006,526,1.0
+Akron,2006,527,1.0
 Arizona St.,9,526,1.0
+Louisiana,309,526,0.9981024667931688
 Washington St.,265,526,1.0
-Robert Morris,2523,526,1.0
 Illinois St.,2287,526,1.0
+Robert Morris,2523,525,1.0
 St. John's,2599,525,0.9980988593155894
 Seton Hall,2550,525,0.9980988593155894
 Western Michigan,2711,525,1.0
@@ -123,23 +123,23 @@ Saint Joseph's,2603,520,0.9980806142034548
 Nevada,2440,520,0.9961685823754789
 Texas A&M Corpus Chris,357,519,1.0
 Delaware,48,519,1.0
-Evansville,339,519,1.0
+Louisiana Tech,2348,519,0.9980769230769231
 Northern Iowa,2460,519,0.9980769230769231
 Mississippi Valley St.,2400,519,1.0
-Louisiana Tech,2348,519,0.9980769230769231
-Marshall,276,518,1.0
 Indiana,84,518,1.0
+Marshall,276,518,1.0
+Evansville,339,518,1.0
 Mercer,2382,518,0.9980732177263969
 Wofford,2747,517,1.0
 DePaul,305,517,1.0
-Eastern Kentucky,2198,517,1.0
 Georgetown,46,517,1.0
-Purdue Fort Wayne,2870,517,1.0
 Monmouth,2405,517,1.0
-Western Carolina,2717,516,1.0
+Ohio,195,517,0.9980694980694981
+Purdue Fort Wayne,2870,517,1.0
+Eastern Kentucky,2198,517,1.0
 Santa Clara,2541,516,1.0
-Ohio,195,516,0.9980657640232108
 Saint Louis,139,516,1.0
+Western Carolina,2717,516,1.0
 UT Arlington,250,515,1.0
 Furman,231,515,1.0
 VMI,2678,515,1.0
@@ -156,15 +156,15 @@ South Florida,58,514,1.0
 Bowling Green,189,513,0.9980544747081712
 Drake,2181,513,0.9980544747081712
 Alcorn St.,2016,512,0.9980506822612085
+Wright St.,2750,512,0.9980506822612085
 Hofstra,2275,512,0.9961089494163424
-Massachusetts,113,512,1.0
 Mount St. Mary's,116,512,1.0
-Arkansas Pine Bluff,2029,511,1.0
+Massachusetts,113,512,1.0
 Temple,218,511,1.0
-Campbell,2097,511,1.0
+Arkansas Pine Bluff,2029,511,1.0
 Lipscomb,288,511,1.0
 Florida Gulf Coast,526,511,1.0
-Wright St.,2750,511,0.998046875
+Campbell,2097,511,1.0
 Portland,2501,511,1.0
 Coppin St.,2154,511,0.998046875
 The Citadel,2643,511,0.998046875
@@ -190,19 +190,19 @@ Towson,119,507,1.0
 Rice,242,507,1.0
 San Diego,301,507,1.0
 Stony Brook,2619,507,1.0
+FIU,2229,507,1.0
 Buffalo,2084,507,0.9980314960629921
-South Carolina,2579,506,1.0
 Utah,254,506,1.0
-FIU,2229,506,1.0
-UC Irvine,300,506,0.9960629921259843
 Marist,2368,506,0.9980276134122288
+UC Irvine,300,506,0.9960629921259843
+South Carolina,2579,506,1.0
 Tennessee Tech,2635,506,1.0
 Rider,2520,504,1.0
 UC Santa Barbara,2540,504,1.0
 North Carolina A&T,2448,504,1.0
+Southern Utah,253,504,1.0
 Cleveland St.,325,504,0.998019801980198
 George Washington,45,503,1.0
-Southern Utah,253,503,1.0
 Drexel,2182,503,1.0
 Florida Atlantic,2226,503,0.998015873015873
 Rhode Island,227,503,1.0
@@ -247,15 +247,15 @@ UCF,2116,496,1.0
 William & Mary,2729,496,1.0
 Cal St. Fullerton,2239,496,0.9979879275653923
 Chicago St.,2130,495,1.0
-Youngstown St.,2754,495,0.9979838709677419
+Northern Colorado,2458,495,1.0
 Southern,2582,495,0.9979838709677419
-Bucknell,2083,494,1.0
+Youngstown St.,2754,495,0.9979838709677419
 USC Upstate,2908,494,1.0
-High Point,2272,494,0.997979797979798
+Bucknell,2083,494,1.0
 Charlotte,2429,494,1.0
-Loyola Marymount,2351,494,1.0
 Missouri St.,2623,494,1.0
-Northern Colorado,2458,494,1.0
+Loyola Marymount,2351,494,1.0
+High Point,2272,494,0.997979797979798
 Georgia St.,2247,494,0.997979797979798
 Sam Houston St.,2534,494,0.997979797979798
 Detroit Mercy,2174,493,1.0
@@ -272,15 +272,15 @@ Montana St.,147,491,1.0
 Pacific,279,491,0.9979674796747967
 Saint Peter's,2612,491,1.0
 UMKC,140,491,0.9959432048681541
+St. Bonaventure,179,490,1.0
 Siena,2561,490,1.0
 Air Force,2005,490,1.0
 Alabama St.,2011,490,1.0
 Saint Francis,2598,489,1.0
-Central Arkansas,2110,489,1.0
 Stephen F. Austin,2617,489,1.0
 Little Rock,2031,489,1.0
 South Carolina St.,2569,489,1.0
-St. Bonaventure,179,489,1.0
+Central Arkansas,2110,489,1.0
 Niagara,315,489,0.9979591836734694
 Albany,399,488,0.9979550102249489
 Lafayette,322,488,1.0
@@ -291,9 +291,9 @@ IU Indy,85,487,0.9959100204498977
 Army,349,487,0.9979508196721312
 Cal Poly,13,487,1.0
 American,44,487,1.0
-Southeastern Louisiana,2545,485,1.0
-Fordham,2230,485,0.9979423868312757
+Southeastern Louisiana,2545,486,1.0
 Holy Cross,107,485,0.9938524590163934
+Fordham,2230,485,0.9979423868312757
 Presbyterian,2506,485,1.0
 Quinnipiac,2514,485,1.0
 Bethune Cookman,2065,485,0.9979423868312757
